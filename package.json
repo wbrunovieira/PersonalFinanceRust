@@ -1,8 +1,8 @@
 {
-  "name": "url-shortener",
+  "name": "encore-ts-starter",
   "private": true,
   "version": "0.0.1",
-  "description": "Encore URL Shortener Tutorial",
+  "description": "Encore Typescript Starter",
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
   "devDependencies": {
     "@types/node": "^20.5.7",
     "typescript": "^5.2.2",
-    "vitest": "^2.1.4"
+    "vitest": "^1.5.0"
   },
   "dependencies": {
     "encore.dev": "^1.45.0"

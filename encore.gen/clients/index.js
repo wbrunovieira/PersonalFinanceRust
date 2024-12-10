@@ -1,1 +1,1 @@
-export * as url from "../internal/clients/url/endpoints.js";
+export * as hello from "../internal/clients/hello/endpoints.js";
