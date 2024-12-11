@@ -1,24 +1,28 @@
-version: '3.8'
-
 services:
-  rust-backend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - '8080:8080'
     environment:
-      DATABASE_URL: 'postgresql://postgres:password@db:5432/mydb'
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable
     depends_on:
       - db
+    volumes:
+      - ./db:/app/db
 
   db:
     image: postgres:15
-    container_name: postgres
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydb
+    container_name: postgres_db
     ports:
       - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

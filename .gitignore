@@ -1,1 +1,54 @@
-/target
+# Executable files
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+
+# Compiled object files
+*.o
+*.a
+
+# Binary packages
+*.tar.gz
+*.zip
+
+# Logs
+*.log
+
+# Dependencies
+/vendor/
+
+# Go modules
+/go.sum
+/go.mod
+
+# IDE and Editor files
+.idea/
+.vscode/
+
+# Backup files
+*.bak
+*.tmp
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Build directory
+/bin/
+/build/
+
+# Coverage files
+coverage.out
+
+# Test result files
+test-results/
+
+# Cache files
+*.cache
+
+# Environment files
+.env
+.env.local
+.env.*.local

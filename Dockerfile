@@ -1,21 +1,15 @@
-FROM rust:1.72 as builder
+FROM golang:1.20
 
 WORKDIR /app
 
-# Cache dependencies
-COPY Cargo.toml .
-RUN cargo fetch
+COPY go.mod go.sum ./
 
-# Copy source files and build the Rust binary
+RUN go mod download
+
 COPY . .
-RUN rm -f Cargo.lock
-RUN cargo build --release
 
-# Use bookworm-slim (which has glibc 2.36) as the final runtime
-FROM debian:bookworm-slim
+RUN go build -o /app/main .
 
-# Copy the binary from the builder image
-COPY --from=builder /app/target/release/financas-rust /usr/local/bin/financas-rust
+EXPOSE 8080
 
-# Run the Rust binary
-CMD ["financas-rust"]
+CMD ["/app/main"]
