@@ -7,13 +7,14 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY db /app/db
+COPY . /app 
 
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
+  postgresql-client \
   && curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz \
   | tar xvz && mv migrate /usr/local/bin/ && \
   chmod +x /usr/local/bin/migrate && \
