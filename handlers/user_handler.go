@@ -5,8 +5,10 @@ import (
 	"app/models"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -23,6 +25,21 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	err = config.DB.QueryRow(query, user.Name, user.Email, user.Age).Scan(&user.ID)
 	if err != nil {
 		http.Error(w, "Error inserting user", http.StatusInternalServerError)
+		return
+	}
+
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			http.Error(w, "Email already exists", http.StatusConflict)
+		} else {
+			log.Printf("Erro ao inserir usuário: %v\n", err)
+			http.Error(w, "Error inserting user", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if user.Name == "" || user.Email == "" || user.Age == 0 {
+		http.Error(w, "All fields (name, email, age) are required", http.StatusBadRequest)
 		return
 	}
 

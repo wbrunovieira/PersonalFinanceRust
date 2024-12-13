@@ -19,6 +19,7 @@ func main() {
 	router := mux.NewRouter()
 
 	routes.RegisterUserRoutes(router)
+	routes.RegisterTransactionRoutes(router)
 
 	port := os.Getenv("PORT")
 	if port == "" {
