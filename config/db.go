@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -14,17 +15,34 @@ var DB *sql.DB
 
 func InitDB() {
 	var err error
-	DB, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatalf("Erro ao conectar no banco de dados: %v\n", err)
+	retries := 10
+
+	for retries > 0 {
+		DB, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+		if err != nil {
+			fmt.Printf("Erro ao conectar no banco de dados: %v\n", err)
+			retries--
+			time.Sleep(3 * time.Second)
+
+			continue
+		}
+
+		err = DB.Ping()
+		if err != nil {
+			fmt.Printf("Não foi possível pingar o banco de dados: %v\n", err)
+			retries--
+			time.Sleep(3 * time.Second)
+
+			continue
+		}
+
+		fmt.Println("Conexão com o banco de dados foi bem-sucedida!")
+		break
 	}
 
-	err = DB.Ping()
-	if err != nil {
-		log.Fatalf("Não foi possível pingar o banco de dados: %v\n", err)
+	if retries == 0 {
+		log.Fatalf("Não foi possível conectar ao banco de dados após várias tentativas. Último erro: %v\n", err)
 	}
-
-	fmt.Println("Conexão com o banco de dados foi bem-sucedida!")
 
 	runMigrations()
 }

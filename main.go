@@ -38,6 +38,7 @@ func main() {
 
 	routes.RegisterUserRoutes(router)
 	routes.RegisterTransactionRoutes(router)
+	routes.RegisterCategoryRoutes(router)
 
 	port := os.Getenv("PORT")
 	if port == "" {
