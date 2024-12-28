@@ -9,6 +9,7 @@ type Transaction struct {
 	Description string    `json:"description"`
 	CategoryID  int       `json:"category_id"`
 	Category    string    `json:"category,omitempty"`
+	Type        string    `json:"type"`
 	Date        time.Time `json:"date"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

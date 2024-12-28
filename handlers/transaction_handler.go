@@ -32,9 +32,25 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `INSERT INTO transactions (user_id, amount, description, category_id, date) 
-	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
-	err := config.DB.QueryRow(query, transaction.UserID, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Date).Scan(&transaction.ID)
+	var categoryType string
+	err := config.DB.QueryRow("SELECT type FROM categories WHERE id = $1", transaction.CategoryID).Scan(&categoryType)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Categoria não encontrada", http.StatusBadRequest)
+		return
+	} else if err != nil {
+		http.Error(w, "Erro ao verificar a categoria", http.StatusInternalServerError)
+		return
+	}
+
+	// Validar se o tipo da transação corresponde ao tipo da categoria
+	if transaction.Type != categoryType {
+		http.Error(w, "O tipo da transação não corresponde ao tipo da categoria", http.StatusBadRequest)
+		return
+	}
+
+	query := `INSERT INTO transactions (user_id, amount, description, category_id, type, date) 
+	          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	err = config.DB.QueryRow(query, transaction.UserID, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Type, transaction.Date).Scan(&transaction.ID)
 	if err != nil {
 		http.Error(w, "Erro ao inserir a transação", http.StatusInternalServerError)
 		return
@@ -45,13 +61,23 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTransactions(w http.ResponseWriter, r *http.Request) {
-	query := `SELECT t.id, t.user_id, t.amount, t.description, t.date, t.created_at, t.updated_at, c.name 
+	transactionType := r.URL.Query().Get("type")
+
+	query := `SELECT t.id, t.user_id, t.amount, t.description, t.type, t.date, t.created_at, t.updated_at, c.name, c.type 
 	          FROM transactions t 
 	          JOIN categories c ON t.category_id = c.id`
 
-	rows, err := config.DB.Query(query)
+	var rows *sql.Rows
+	var err error
+	if transactionType != "" {
+		query += " WHERE t.type = $1"
+		rows, err = config.DB.Query(query, transactionType)
+	} else {
+		rows, err = config.DB.Query(query)
+	}
+
 	if err != nil {
-		http.Error(w, "Error fetching transactions", http.StatusInternalServerError)
+		http.Error(w, "Erro ao buscar transações", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -59,14 +85,13 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 	var transactions []models.Transaction
 	for rows.Next() {
 		var transaction models.Transaction
-		var categoryName string
-		err = rows.Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Description, &transaction.Date, &transaction.CreatedAt, &transaction.UpdatedAt, &categoryName)
+		var categoryName, categoryType string
+		err = rows.Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Description, &transaction.Type, &transaction.Date, &transaction.CreatedAt, &transaction.UpdatedAt, &categoryName, &categoryType)
 		if err != nil {
-			http.Error(w, "Error scanning transaction", http.StatusInternalServerError)
+			http.Error(w, "Erro ao escanear transação", http.StatusInternalServerError)
 			return
 		}
 		transaction.Category = categoryName
-
 		transactions = append(transactions, transaction)
 	}
 
@@ -108,33 +133,38 @@ func UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
+		http.Error(w, "ID de transação inválido", http.StatusBadRequest)
 		return
 	}
 
 	var transaction models.Transaction
 	err = json.NewDecoder(r.Body).Decode(&transaction)
 	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
+		http.Error(w, "Entrada inválida", http.StatusBadRequest)
 		return
 	}
 
-	var categoryID int
-	err = config.DB.QueryRow("SELECT id FROM categories WHERE id = $1", transaction.CategoryID).Scan(&categoryID)
+	var categoryType string
+	err = config.DB.QueryRow("SELECT type FROM categories WHERE id = $1", transaction.CategoryID).Scan(&categoryType)
 	if err == sql.ErrNoRows {
-		http.Error(w, "Category not found", http.StatusBadRequest)
+		http.Error(w, "Categoria não encontrada", http.StatusBadRequest)
 		return
 	} else if err != nil {
-		http.Error(w, "Error verifying category", http.StatusInternalServerError)
+		http.Error(w, "Erro ao verificar a categoria", http.StatusInternalServerError)
+		return
+	}
+
+	if transaction.Type != categoryType {
+		http.Error(w, "O tipo da transação não corresponde ao tipo da categoria", http.StatusBadRequest)
 		return
 	}
 
 	query := `UPDATE transactions 
-	          SET amount = $1, description = $2, category_id = $3, date = $4 
-	          WHERE id = $5`
-	_, err = config.DB.Exec(query, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Date, id)
+	          SET amount = $1, description = $2, category_id = $3, type = $4, date = $5 
+	          WHERE id = $6`
+	_, err = config.DB.Exec(query, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Type, transaction.Date, id)
 	if err != nil {
-		http.Error(w, "Error updating transaction", http.StatusInternalServerError)
+		http.Error(w, "Erro ao atualizar a transação", http.StatusInternalServerError)
 		return
 	}
 
