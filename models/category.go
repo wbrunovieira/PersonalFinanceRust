@@ -1,7 +1,7 @@
 package models
 
 type Category struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Type string `json:"type"`
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	Category_type string `json:"type"`
 }

@@ -1,4 +1,4 @@
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS  projections (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,

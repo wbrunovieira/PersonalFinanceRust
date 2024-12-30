@@ -52,7 +52,18 @@ func main() {
 
 	routes.RegisterUserRoutes(router)
 	routes.RegisterTransactionRoutes(router)
+	routes.RegisterProjectionRoutes(router)
 	routes.RegisterCategoryRoutes(router)
+
+	routes.RegisterAdminRoutes(router)
+
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		path, err := route.GetPathTemplate()
+		if err == nil {
+			fmt.Println("Registered route:", path)
+		}
+		return nil
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {

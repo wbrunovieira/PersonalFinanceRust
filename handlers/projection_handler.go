@@ -6,28 +6,26 @@ import (
 	"app/utils"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
-func CreateTransaction(w http.ResponseWriter, r *http.Request) {
-	var transaction models.Transaction
+func CreateProjection(w http.ResponseWriter, r *http.Request) {
+	var projection models.Projection
 
-	if err := utils.DecodeJSON(w, r, &transaction); err != nil {
+	if err := utils.DecodeJSON(w, r, &projection); err != nil {
 		return
 	}
 
-	if transaction.UserID == 0 || transaction.Amount == 0 || transaction.CategoryID == 0 || transaction.Description == "" || transaction.Date.IsZero() {
+	if projection.UserID == 0 || projection.Amount == 0 || projection.CategoryID == 0 || projection.Description == "" || projection.Date.IsZero() {
 		http.Error(w, "Todos os campos são obrigatórios", http.StatusBadRequest)
 		return
 	}
 
 	var categoryType string
-	err := config.DB.QueryRow("SELECT category_type FROM categories WHERE id = $1", transaction.CategoryID).Scan(&categoryType)
-	fmt.Println("Verificando categoria com ID:", transaction.CategoryID)
+	err := config.DB.QueryRow("SELECT category_type FROM categories WHERE id = $1", projection.CategoryID).Scan(&categoryType)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Categoria não encontrada", http.StatusBadRequest)
 		return
@@ -36,25 +34,25 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if transaction.Type != categoryType {
+	if projection.Type != categoryType {
 		http.Error(w, "O tipo da transação não corresponde ao tipo da categoria", http.StatusBadRequest)
 		return
 	}
 
-	query := `INSERT INTO transactions (user_id, amount, description, category_id, type, date) 
+	query := `INSERT INTO projections (user_id, amount, description, category_id, type, date) 
 	          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-	err = config.DB.QueryRow(query, transaction.UserID, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Type, transaction.Date).Scan(&transaction.ID)
+	err = config.DB.QueryRow(query, projection.UserID, projection.Amount, projection.Description, projection.CategoryID, projection.Type, projection.Date).Scan(&projection.ID)
 	if err != nil {
 		http.Error(w, "Erro ao inserir a transação", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(transaction)
+	json.NewEncoder(w).Encode(projection)
 }
 
-func GetTransactions(w http.ResponseWriter, r *http.Request) {
-	transactionType := r.URL.Query().Get("type")
+func GetProjections(w http.ResponseWriter, r *http.Request) {
+	projectionType := r.URL.Query().Get("type")
 
 	query := `SELECT t.id, t.user_id, t.amount, t.description, t.type, t.date, t.created_at, t.updated_at, c.name, c.category_type 
 	          FROM transactions t 
@@ -62,67 +60,67 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 
 	var rows *sql.Rows
 	var err error
-	if transactionType != "" {
+	if projectionType != "" {
 		query += " WHERE t.type = $1"
-		rows, err = config.DB.Query(query, transactionType)
+		rows, err = config.DB.Query(query, projectionType)
 	} else {
 		rows, err = config.DB.Query(query)
 	}
 
 	if err != nil {
-		http.Error(w, "Erro ao buscar transações", http.StatusInternalServerError)
+		http.Error(w, "Erro ao buscar projeções", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var transactions []models.Transaction
+	var projections []models.Projection
 	for rows.Next() {
-		var transaction models.Transaction
+		var projection models.Projection
 		var categoryName, categoryType string
-		err = rows.Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Description, &transaction.Type, &transaction.Date, &transaction.CreatedAt, &transaction.UpdatedAt, &categoryName, &categoryType)
+		err = rows.Scan(&projection.ID, &projection.UserID, &projection.Amount, &projection.Description, &projection.Type, &projection.Date, &projection.CreatedAt, &projection.UpdatedAt, &categoryName, &categoryType)
 		if err != nil {
 			http.Error(w, "Erro ao escanear transação", http.StatusInternalServerError)
 			return
 		}
-		transaction.Category = categoryName
-		transactions = append(transactions, transaction)
+		projection.Category = categoryName
+		projections = append(projections, projection)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(transactions)
+	json.NewEncoder(w).Encode(projections)
 }
 
-func GetTransaction(w http.ResponseWriter, r *http.Request) {
+func GetProjection(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
+		http.Error(w, "Invalid projection ID", http.StatusBadRequest)
 		return
 	}
 
 	query := `SELECT t.id, t.user_id, t.amount, t.description, t.date, t.created_at, t.updated_at, c.name 
-	          FROM transactions t 
+	          FROM projections t 
 	          JOIN categories c ON t.category_id = c.id 
 	          WHERE t.id = $1`
 
-	var transaction models.Transaction
+	var projection models.Projection
 	var categoryName string
-	err = config.DB.QueryRow(query, id).Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Description, &transaction.Date, &transaction.CreatedAt, &transaction.UpdatedAt, &categoryName)
+	err = config.DB.QueryRow(query, id).Scan(&projection.ID, &projection.UserID, &projection.Amount, &projection.Description, &projection.Date, &projection.CreatedAt, &projection.UpdatedAt, &categoryName)
 	if err == sql.ErrNoRows {
-		http.Error(w, "Transaction not found", http.StatusNotFound)
+		http.Error(w, "Projection not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		http.Error(w, "Error fetching transaction", http.StatusInternalServerError)
+		http.Error(w, "Error fetching projection", http.StatusInternalServerError)
 		return
 	}
 
-	transaction.Category = categoryName
+	projection.Category = categoryName
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(transaction)
+	json.NewEncoder(w).Encode(projection)
 }
 
-func UpdateTransaction(w http.ResponseWriter, r *http.Request) {
+func UpdateProjection(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
@@ -130,15 +128,15 @@ func UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var transaction models.Transaction
-	err = json.NewDecoder(r.Body).Decode(&transaction)
+	var projection models.Projection
+	err = json.NewDecoder(r.Body).Decode(&projection)
 	if err != nil {
 		http.Error(w, "Entrada inválida", http.StatusBadRequest)
 		return
 	}
 
 	var categoryType string
-	err = config.DB.QueryRow("SELECT type FROM categories WHERE id = $1", transaction.CategoryID).Scan(&categoryType)
+	err = config.DB.QueryRow("SELECT type FROM categories WHERE id = $1", projection.CategoryID).Scan(&categoryType)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Categoria não encontrada", http.StatusBadRequest)
 		return
@@ -147,15 +145,15 @@ func UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if transaction.Type != categoryType {
+	if projection.Type != categoryType {
 		http.Error(w, "O tipo da transação não corresponde ao tipo da categoria", http.StatusBadRequest)
 		return
 	}
 
-	query := `UPDATE transactions 
+	query := `UPDATE projections 
 	          SET amount = $1, description = $2, category_id = $3, type = $4, date = $5 
 	          WHERE id = $6`
-	_, err = config.DB.Exec(query, transaction.Amount, transaction.Description, transaction.CategoryID, transaction.Type, transaction.Date, id)
+	_, err = config.DB.Exec(query, projection.Amount, projection.Description, projection.CategoryID, projection.Type, projection.Date, id)
 	if err != nil {
 		http.Error(w, "Erro ao atualizar a transação", http.StatusInternalServerError)
 		return
@@ -164,18 +162,18 @@ func UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteTransaction(w http.ResponseWriter, r *http.Request) {
+func DeleteProjection(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
+		http.Error(w, "Invalid projection ID", http.StatusBadRequest)
 		return
 	}
 
-	query := `DELETE FROM transactions WHERE id = $1`
+	query := `DELETE FROM projections WHERE id = $1`
 	_, err = config.DB.Exec(query, id)
 	if err != nil {
-		http.Error(w, "Error deleting transaction", http.StatusInternalServerError)
+		http.Error(w, "Error deleting projection", http.StatusInternalServerError)
 		return
 	}
 
