@@ -7,9 +7,9 @@ import (
 )
 
 func RegisterProjectionRoutes(router *mux.Router) {
-	router.HandleFunc("/projections", handlers.CreateTransaction).Methods("POST", "OPTIONS")
+	router.HandleFunc("/projections", handlers.CreateProjection).Methods("POST", "OPTIONS")
 	router.HandleFunc("/projections", handlers.GetProjections).Methods("GET", "OPTIONS")
-	router.HandleFunc("/projections/{id}", handlers.GetTransaction).Methods("GET", "OPTIONS")
-	router.HandleFunc("/projections/{id}", handlers.UpdateTransaction).Methods("PUT", "OPTIONS")
-	router.HandleFunc("/projections/{id}", handlers.DeleteTransaction).Methods("DELETE", "OPTIONS")
+	router.HandleFunc("/projections/{id}", handlers.GetProjection).Methods("GET", "OPTIONS")
+	router.HandleFunc("/projections/{id}", handlers.UpdateProjection).Methods("PUT", "OPTIONS")
+	router.HandleFunc("/projections/{id}", handlers.DeleteProjection).Methods("DELETE", "OPTIONS")
 }

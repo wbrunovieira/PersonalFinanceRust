@@ -4,10 +4,14 @@ import (
 	"app/config"
 	"app/models"
 	"app/utils"
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -15,15 +19,37 @@ import (
 func CreateProjection(w http.ResponseWriter, r *http.Request) {
 	var projection models.Projection
 
+	// Lê e decodifica o JSON do corpo da requisição
+	body, _ := io.ReadAll(r.Body)
+	fmt.Println("Payload recebido:", string(body))
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
 	if err := utils.DecodeJSON(w, r, &projection); err != nil {
 		return
 	}
 
-	if projection.UserID == 0 || projection.Amount == 0 || projection.CategoryID == 0 || projection.Description == "" || projection.Date.IsZero() {
+	// Verifica se os campos obrigatórios estão preenchidos
+	if projection.UserID == 0 || projection.Amount == 0 || projection.CategoryID == 0 || projection.Description == "" || projection.Type == "" || projection.Date.IsZero() {
 		http.Error(w, "Todos os campos são obrigatórios", http.StatusBadRequest)
 		return
 	}
 
+	// Validação do campo `end_month` (se for recorrente)
+	if projection.IsRecurring && projection.EndMonth != nil {
+		// Converte "YYYY-MM" para o tipo DATE
+		endMonth, err := time.Parse("2006-01", *projection.EndMonth)
+		if err != nil {
+			http.Error(w, "Formato inválido para end_month. Use YYYY-MM.", http.StatusBadRequest)
+			return
+		}
+		formattedEndMonth := endMonth.Format("2006-01-02") // Formata para DATE compatível com o PostgreSQL
+		projection.EndMonth = &formattedEndMonth
+	} else if projection.IsRecurring && projection.EndMonth == nil {
+		http.Error(w, "Para projeções recorrentes, o campo end_month é obrigatório.", http.StatusBadRequest)
+		return
+	}
+
+	// Verifica se a categoria corresponde ao tipo
 	var categoryType string
 	err := config.DB.QueryRow("SELECT category_type FROM categories WHERE id = $1", projection.CategoryID).Scan(&categoryType)
 	if err == sql.ErrNoRows {
@@ -35,15 +61,18 @@ func CreateProjection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if projection.Type != categoryType {
-		http.Error(w, "O tipo da transação não corresponde ao tipo da categoria", http.StatusBadRequest)
+		http.Error(w, "O tipo da projeção não corresponde ao tipo da categoria", http.StatusBadRequest)
 		return
 	}
 
-	query := `INSERT INTO projections (user_id, amount, description, category_id, type, date) 
-	          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-	err = config.DB.QueryRow(query, projection.UserID, projection.Amount, projection.Description, projection.CategoryID, projection.Type, projection.Date).Scan(&projection.ID)
+	// Realiza a inserção na tabela projections
+	query := `
+        INSERT INTO projections (user_id, amount, description, category_id, type, is_recurring, end_month, date, created_at, updated_at) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id
+    `
+	err = config.DB.QueryRow(query, projection.UserID, projection.Amount, projection.Description, projection.CategoryID, projection.Type, projection.IsRecurring, projection.EndMonth, projection.Date).Scan(&projection.ID)
 	if err != nil {
-		http.Error(w, "Erro ao inserir a transação", http.StatusInternalServerError)
+		http.Error(w, "Erro ao inserir a projeção", http.StatusInternalServerError)
 		return
 	}
 
