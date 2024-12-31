@@ -8,7 +8,7 @@ type Projection struct {
 	Amount      float64   `json:"amount"`
 	Description string    `json:"description"`
 	CategoryID  int       `json:"category_id"`
-	Category    string    `json:"category,omitempty"` // Preenchido ao buscar a categoria
+	Category    string    `json:"category,omitempty"`
 	Type        string    `json:"type"`
 	IsRecurring bool      `json:"is_recurring"`
 	EndMonth    *string   `json:"end_month,omitempty"`
